@@ -1,7 +1,6 @@
 
 
 [webservers]
-127.0.0.1 ansible_connection=ssh ansible_user=root site_root=/var/www-data/site
 testvm1.stripchat.dev ansible_connection=ssh ansible_user=root site_root=/var/www-data/site
 
 

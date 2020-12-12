@@ -1,0 +1,110 @@
+- hosts: webservers
+  gather_facts: False
+  tasks:
+  - name: alternate SSH port
+    lineinfile:
+      dest: "/etc/ssh/sshd_config"
+      regexp: "^Port"
+      line: "Port 222"
+    notify: "Restart sshd"
+  
+  - name: selinux for alternate SSH port
+    seport:
+      ports: "222"
+      proto: "tcp"
+      setype: "ssh_port_t"
+      state: "present"
+
+
+
+  - iptables:
+      chain: INPUT
+      ctstate: ESTABLISHED,RELATED
+      jump: ACCEPT
+    become: yes
+
+
+  - name: Accept new SSH connections
+    iptables:
+      chain: INPUT
+      protocol: tcp
+      destination_port: 222
+      ctstate: NEW
+      syn: match
+      jump: ACCEPT
+      comment: Accept new SSH connections.
+
+
+  # - iptables:
+      # chain: OUTPUT
+      # jump: DSCP
+      # table: mangle
+      # set_dscp_mark: 8
+      # protocol: tcp
+
+
+  # - iptables:
+      # chain: OUTPUT
+      # jump: DSCP
+      # table: mangle
+      # set_dscp_mark_class: CS1
+      # protocol: tcp
+
+      
+  - name: allow https
+    iptables:
+      chain: INPUT
+      protocol: tcp
+      destination_port: 443
+      jump: ACCEPT
+      rule_num: 5
+  
+  - name: allow http
+    iptables:
+      chain: INPUT
+      protocol: tcp
+      destination_port: 80
+      jump: ACCEPT
+      rule_num: 5
+      
+  - name: allow php-fpm
+    iptables:
+      chain: INPUT
+      source: localhost
+      protocol: tcp
+      destination_port: 9000
+      jump: ACCEPT
+      rule_num: 5
+
+  - name: drop all input
+    iptables:
+      chain: INPUT
+      policy: DROP
+
+  
+  - name: Reject tcp with tcp-reset
+    iptables:
+      chain: INPUT
+      protocol: tcp
+      reject_with: tcp-reset
+      ip_version: ipv4
+
+    
+  - name:  Set tcp flags
+    iptables:
+      chain: OUTPUT
+      jump: DROP
+      protocol: tcp
+      tcp_flags:
+        flags: ALL
+        flags_set:
+          - ACK
+          - RST
+          - SYN
+          - FIN
+
+  handlers:
+  - name: Restart sshd
+    service:
+      name: sshd
+      state: restarted
