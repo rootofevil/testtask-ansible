@@ -1,0 +1,87 @@
+- hosts: webservers
+  gather_facts: False
+  tasks:
+  # - name: Install epel repo
+    # yum:
+      # name: epel-release
+      # state: present
+          
+  # - name: install remi repo
+    # yum:
+      # name: https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+      # state: present
+      
+  - name: Import epel GPG key.
+    rpm_key:
+      key: http://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+      state: present
+      
+  - name: Import remi GPG key.
+    rpm_key:
+      key: https://rpms.remirepo.net/RPM-GPG-KEY-remi
+      state: present
+    
+    
+  - name: add remi repo
+    yum_repository :
+      name: remi-php74
+      mirrorlist: http://cdn.remirepo.net/enterprise/7/php74/mirror
+      enabled: yes
+      description: remi
+      ##gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-remi
+      
+  - name: add epel repo
+    yum_repository :
+      name: epel
+      metalink: https://mirrors.fedoraproject.org/metalink?repo=epel-7&arch=$basearch&infra=$infra&content=$contentdir
+      enabled: yes
+      description: epel
+  
+  - name: Installing nginx
+    yum:
+      name: 
+      - nginx
+      - php-fpm-7.4.13
+      enablerepo:
+      - remi-php74
+      - epel
+
+  - name: enable nginx 
+    service:
+      name: nginx
+      state: started
+      enabled: yes
+    
+  - name: enable php-fpm 
+    service:
+      name: php-fpm
+      state: started
+      enabled: yes
+      
+  - name: Create site dir
+    file: 
+      path: /var/www-data/site
+      state: directory
+      
+  - name: copy index.php
+    copy:
+      src: /etc/ansible/playbooks/files/site/index.php
+      dest: "{{ site_root }}"
+      
+  - name: copy image.png
+    copy:
+      src: /etc/ansible/playbooks/files/site/image.png
+      dest: "{{ site_root }}"
+      
+  - name: deploy nginx config
+    template:
+      src: /etc/ansible/playbooks/files/nginx.conf.tmpl
+      dest: /etc/nginx/nginx.conf
+    notify: Restart nginx
+      
+  handlers:
+  - name: Restart nginx
+    service:
+      name: nginx
+      state: restarted
+ 
